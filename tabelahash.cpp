@@ -1,10 +1,14 @@
 #include "tabelahash.hpp"
 #include <iostream>
 #include <algorithm>
+#include <fstream>
+#include <sstream>
 
-size_t tabelahash::hash2(const std::string &chave) const
+using namespace std;
+
+size_t tabelahash::hash2(const string &chave) const
 {
-    const int base2 = 53;  // Um valor diferente de base
+    const int base2 = 53;
     const int mod = 1e9 + 7;
     unsigned long long hashValue = 0;
     for (char c : chave)
@@ -25,40 +29,39 @@ tabelahash::~tabelahash()
     }
 }
 
-class TabelaCheiaException : public std::exception {
+class TabelaCheiaException : public exception {
     virtual const char *what() const throw() {
         return "Tabela hash cheia!";
     }
 };
 
-void tabelahash::insere(const std::string &nome, unsigned ano, unsigned ocorrencias)
+void tabelahash::insere(const string &nome, unsigned ano, unsigned ocorrencias)
 {
-    size_t index = hash(nome);  // Primeira função de hash
+    size_t index = hash(nome);
 
-    if (tabela[index] == nullptr)  // Se a posição estiver livre
+    if (tabela[index] == nullptr)
     {
         tabela[index] = new registro(nome, ano, ocorrencias);
-        std::cout << "Registro inserido na posição " << index << std::endl;
+        cout << "Registro inserido na posição " << index << endl;
     }
     else
     {
-        // Tratamento de colisão utilizando Double Hashing
-        size_t i = 1;  // Contador de tentativas
-        size_t newIndex = (index + i * hash2(nome)) % tamanho;  // Segunda função de hash
-        while (tabela[newIndex] != nullptr && newIndex != index)  // Verifica se a nova posição está ocupada
+        size_t i = 1;
+        size_t newIndex = (index + i * hash2(nome)) % tamanho;
+        while (tabela[newIndex] != nullptr && newIndex != index)
         {
-            i++;  // Incrementa a tentativa
-            newIndex = (index + i * hash2(nome)) % tamanho;  // Aplica o double hashing
+            i++;
+            newIndex = (index + i * hash2(nome)) % tamanho;
         }
 
-        if (newIndex != index)  // Se encontrou um espaço disponível
+        if (newIndex != index)
         {
             tabela[newIndex] = new registro(nome, ano, ocorrencias);
-            std::cout << "Registro inserido na posição " << newIndex << std::endl;
+            cout << "Registro inserido na posição " << newIndex << endl;
         }
         else
         {
-            std::cerr << "Tabela hash cheia ou erro ao inserir " << nome << std::endl;
+            cerr << "Tabela hash cheia ou erro ao inserir " << nome << endl;
         }
     }
 }
@@ -135,13 +138,48 @@ size_t tabelahash::acha_registro(const std::string &nome) const
 
 size_t tabelahash::hash(const std::string &chave) const
 {
-    const int base = 31;
-    const int mod = 1e9 + 7;
-    unsigned long long hashValue = 0;
-    for (char c : chave)
-    {
-        hashValue = (hashValue * base + static_cast<unsigned long long>(c)) % mod;
+    size_t hash_value = 0;
+    size_t base = 31;
+    size_t mod = 1e9 + 7;
+    for (char c : chave) {
+        hash_value = (hash_value * base + static_cast<unsigned long long>(c)) % mod;
     }
-    return hashValue % tamanho;
+
+    return hash_value % tamanho;
 }
 
+void tabelahash::ler_csv(const std::string &arquivo) {
+    std::ifstream arquivo_csv(arquivo);
+
+    if (!arquivo_csv.is_open()) {
+        throw std::runtime_error("Não foi possível abrir o arquivo: " + arquivo);
+    }
+
+    std::string linha;
+
+    if (!std::getline(arquivo_csv, linha)) {
+        throw std::runtime_error("Arquivo CSV está vazio ou inválido.");
+    }
+
+    while (std::getline(arquivo_csv, linha)) {
+        std::istringstream stream(linha);
+        std::string id, nome, ano_str, genero, ocorrencias_str;
+
+        if (!std::getline(stream, id, ',') ||
+            !std::getline(stream, nome, ',') ||
+            !std::getline(stream, ano_str, ',') ||
+            !std::getline(stream, genero, ',') ||
+            !std::getline(stream, ocorrencias_str, ',')) {
+            throw std::runtime_error("Erro ao processar linha do CSV: " + linha);
+        }
+
+        try {
+            unsigned ano = std::stoul(ano_str);
+            unsigned ocorrencias = std::stoul(ocorrencias_str);
+
+            insere(nome, ano, ocorrencias);
+        } catch (const std::exception &e) {
+            throw std::runtime_error("Erro ao converter dados na linha: " + linha);
+        }
+    }
+}
